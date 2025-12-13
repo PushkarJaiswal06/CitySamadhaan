@@ -9,6 +9,7 @@ import complaintRoutes from './routes/complaintRoutes.js';
 import departmentRoutes from './routes/departmentRoutes.js';
 import roleRoutes from './routes/roleRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -54,6 +55,7 @@ app.use('/api/complaints', complaintRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/users', userRoutes);
 
 // 404 Handler
 app.use((req, res) => {
