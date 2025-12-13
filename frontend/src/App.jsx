@@ -23,7 +23,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return <Navigate to="/login" />;
   }
 
-  if (allowedRoles && user && !allowedRoles.includes(user.role.name)) {
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     return <Navigate to="/unauthorized" />;
   }
 
@@ -128,7 +128,7 @@ const DashboardRedirect = () => {
     super_admin: '/dashboard/admin'
   };
 
-  const dashboardPath = roleDashboards[user.role.name] || '/dashboard/citizen';
+  const dashboardPath = roleDashboards[user.role] || '/dashboard/citizen';
   return <Navigate to={dashboardPath} />;
 };
 

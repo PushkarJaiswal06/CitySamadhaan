@@ -2,14 +2,21 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { complaintService } from '../../services/complaintService';
-import { FaPlus, FaList, FaChartBar, FaSignOutAlt } from 'react-icons/fa';
+import { FaPlus, FaList, FaChartBar, FaSignOutAlt, FaEye } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import FileComplaintModal from '../../components/FileComplaintModal';
+import ComplaintsListModal from '../../components/ComplaintsListModal';
+import ComplaintDetailModal from '../../components/ComplaintDetailModal';
 
 const CitizenDashboard = () => {
   const { user, logout } = useAuthStore();
   const [complaints, setComplaints] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showFileModal, setShowFileModal] = useState(false);
+  const [showListModal, setShowListModal] = useState(false);
+  const [selectedComplaintId, setSelectedComplaintId] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     fetchComplaints();
@@ -18,8 +25,8 @@ const CitizenDashboard = () => {
 
   const fetchComplaints = async () => {
     try {
-      const { data } = await complaintService.getComplaints({ page: 1, limit: 10 });
-      setComplaints(data.complaints);
+      const { data } = await complaintService.getComplaints({ page: 1, limit: 5 });
+      setComplaints(data.complaints || []);
     } catch (error) {
       toast.error('Failed to load complaints');
     } finally {
@@ -39,6 +46,28 @@ const CitizenDashboard = () => {
   const handleLogout = async () => {
     await logout();
     toast.success('Logged out successfully');
+  };
+
+  const handleComplaintSuccess = (newComplaint) => {
+    fetchComplaints();
+    fetchStats();
+    toast.success(`Complaint ${newComplaint.complaintId} filed successfully!`);
+  };
+
+  const handleFileComplaintClick = () => {
+    console.log('File complaint clicked');
+    setShowFileModal(true);
+  };
+
+  const handleViewAllClick = () => {
+    console.log('View all complaints clicked');
+    setShowListModal(true);
+  };
+
+  const handleViewComplaint = (complaintId) => {
+    console.log('View complaint clicked:', complaintId);
+    setSelectedComplaintId(complaintId);
+    setShowDetailModal(true);
   };
 
   const getStatusColor = (status) => {
@@ -105,19 +134,19 @@ const CitizenDashboard = () => {
               icon={<FaPlus />}
               title="File New Complaint"
               description="Register a new civic complaint"
-              onClick={() => toast.info('Complaint form coming soon')}
+              onClick={handleFileComplaintClick}
             />
             <ActionButton
               icon={<FaList />}
               title="My Complaints"
               description="View all your complaints"
-              onClick={() => {}}
+              onClick={handleViewAllClick}
             />
             <ActionButton
               icon={<FaChartBar />}
               title="Track Status"
               description="Track complaint progress"
-              onClick={() => {}}
+              onClick={handleViewAllClick}
             />
           </div>
         </div>
@@ -150,21 +179,54 @@ const CitizenDashboard = () => {
                           )}
                         </div>
                         <h3 className="mt-1 font-medium text-gray-900">{complaint.title}</h3>
-                        <p className="mt-1 text-sm text-gray-600">{complaint.description}</p>
+                        <p className="mt-1 text-sm text-gray-600 line-clamp-2">{complaint.description}</p>
                         <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                          <span>📍 {complaint.location?.address}</span>
+                          <span>📍 {complaint.location?.address || 'No location'}</span>
                           <span>🏢 {complaint.department?.name}</span>
                           <span>⏰ {new Date(complaint.createdAt).toLocaleDateString()}</span>
                         </div>
                       </div>
+                      <button
+                        onClick={() => handleViewComplaint(complaint._id)}
+                        className="ml-4 px-3 py-1 text-sm text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-md flex items-center space-x-1"
+                      >
+                        <FaEye />
+                        <span>View</span>
+                      </button>
                     </div>
                   </div>
                 ))}
+                <button
+                  onClick={() => setShowListModal(true)}
+                  className="w-full py-2 text-sm text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  View All Complaints →
+                </button>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <FileComplaintModal
+        isOpen={showFileModal}
+        onClose={() => setShowFileModal(false)}
+        onSuccess={handleComplaintSuccess}
+      />
+      <ComplaintsListModal
+        isOpen={showListModal}
+        onClose={() => setShowListModal(false)}
+      />
+      <ComplaintDetailModal
+        isOpen={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        complaintId={selectedComplaintId}
+        onUpdate={() => {
+          fetchComplaints();
+          fetchStats();
+        }}
+      />
     </div>
   );
 };

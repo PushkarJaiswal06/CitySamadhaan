@@ -66,13 +66,8 @@ const Login = () => {
         navigate('/verify-otp', { state: { phone: formData.phone } });
       } else {
         toast.success('Login successful!');
-        // Role-based dashboard redirect
-        const userRole = result.data?.user?.role;
-        if (userRole) {
-          navigate(`/dashboard/${userRole}`);
-        } else {
-          navigate('/dashboard/citizen');
-        }
+        // Redirect to dashboard (will auto-redirect based on role)
+        navigate('/dashboard');
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Login failed');

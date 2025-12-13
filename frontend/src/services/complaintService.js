@@ -7,6 +7,18 @@ export const complaintService = {
     return response.data;
   },
 
+  // Upload complaint image
+  uploadImage: async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await api.post('/complaints/upload-image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
   // Get all complaints (with filters)
   getComplaints: async (filters = {}) => {
     const response = await api.get('/complaints', { params: filters });
@@ -31,9 +43,16 @@ export const complaintService = {
     return response.data;
   },
 
+  // Add feedback/rating
+  addFeedback: async (id, feedbackData) => {
+    const response = await api.post(`/complaints/${id}/feedback`, feedbackData);
+    return response.data;
+  },
+
   // Get statistics
   getStats: async () => {
     const response = await api.get('/complaints/stats');
     return response.data;
   }
 };
+

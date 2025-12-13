@@ -11,9 +11,7 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: function() {
-      return this.role && !['citizen', 'call_center_agent'].includes(this.role.name);
-    },
+    required: false, // Made optional - validation happens at controller level
     sparse: true,
     lowercase: true,
     trim: true,

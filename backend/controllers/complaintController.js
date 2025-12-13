@@ -9,7 +9,7 @@ import cloudinaryService from '../services/cloudinaryService.js';
 // @route   POST /api/complaints
 export const createComplaint = async (req, res) => {
   try {
-    const { title, description, category, departmentId, location, priority, source = 'web', language = 'en' } = req.body;
+    const { title, description, category, departmentId, location, priority, source = 'web', language = 'en', media = [] } = req.body;
 
     // Get department and category
     const department = await Department.findById(departmentId);
@@ -33,7 +33,8 @@ export const createComplaint = async (req, res) => {
       priority: priority || categoryDoc.defaultPriority,
       source,
       language,
-      status: 'pending'
+      status: 'pending',
+      media: media || []
     });
 
     // Increment department counter
@@ -314,6 +315,100 @@ export const getComplaintStats = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch statistics'
+    });
+  }
+};
+
+// @desc    Upload complaint image
+// @route   POST /api/complaints/upload-image
+export const uploadComplaintImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
+    }
+
+    // Upload to Cloudinary
+    const result = await cloudinaryService.uploadImage(req.file.buffer, {
+      folder: 'complaints',
+      resource_type: 'image'
+    });
+
+    res.json({
+      success: true,
+      data: {
+        url: result.secure_url,
+        publicId: result.public_id
+      }
+    });
+  } catch (error) {
+    console.error('Upload image error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to upload image'
+    });
+  }
+};
+
+// @desc    Add feedback/rating to complaint
+// @route   POST /api/complaints/:id/feedback
+export const addComplaintFeedback = async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rating must be between 1 and 5'
+      });
+    }
+
+    const complaint = await Complaint.findById(req.params.id);
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    // Check if user is the complaint owner
+    if (complaint.citizen.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only rate your own complaints'
+      });
+    }
+
+    // Check if complaint is resolved or closed
+    if (complaint.status !== 'resolved' && complaint.status !== 'closed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only rate resolved or closed complaints'
+      });
+    }
+
+    // Add feedback
+    complaint.feedback = {
+      rating,
+      comment,
+      submittedAt: new Date()
+    };
+
+    await complaint.save();
+
+    res.json({
+      success: true,
+      message: 'Feedback submitted successfully',
+      data: complaint
+    });
+  } catch (error) {
+    console.error('Add feedback error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to add feedback'
     });
   }
 };

@@ -349,8 +349,8 @@ export const getCurrentUser = async (req, res) => {
         name: user.name,
         phone: user.phone,
         email: user.email,
-        role: user.role,
-        department: user.department,
+        role: user.role.name,
+        department: user.department?.name,
         language: user.language,
         isVerified: user.isVerified,
         createdAt: user.createdAt

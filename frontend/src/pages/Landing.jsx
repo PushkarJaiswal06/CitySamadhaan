@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { FaPhoneAlt, FaSms, FaMobileAlt, FaShieldAlt, FaFileContract, FaChartLine } from 'react-icons/fa';
+import { useAuthStore } from '../store/authStore';
 
 const Landing = () => {
+  const { isAuthenticated, user } = useAuthStore();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Navbar */}
@@ -12,15 +15,29 @@ const Landing = () => {
               <h1 className="text-2xl font-bold text-primary-600">CitySamdhaan</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <Link to="/login" className="text-gray-700 hover:text-primary-600">
-                Login
-              </Link>
-              <Link
-                to="/register"
-                className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700"
-              >
-                Register
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  <span className="text-gray-700">Welcome, {user?.name}</span>
+                  <Link
+                    to="/dashboard"
+                    className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700"
+                  >
+                    Dashboard
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" className="text-gray-700 hover:text-primary-600">
+                    Login
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700"
+                  >
+                    Register
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
