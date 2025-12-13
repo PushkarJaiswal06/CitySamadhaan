@@ -1,6 +1,6 @@
 import User from '../models/User.js';
 import Role from '../models/Role.js';
-import redisClient from '../config/redis.js';
+import { setCache, getCache, deleteCache } from '../config/redis.js';
 import { generateToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
 import msg91Service from '../services/msg91Service.js';
 import crypto from 'crypto';
@@ -43,7 +43,7 @@ export const register = async (req, res) => {
     // Send OTP if auth method is OTP
     if (authMethod === 'otp') {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      await redisClient.setex(`otp:${phone}`, 300, otp); // 5 minutes expiry
+      await setCache(`otp:${phone}`, otp, 300); // 5 minutes expiry
 
       await msg91Service.sendSMS(
         phone,
@@ -164,7 +164,7 @@ export const login = async (req, res) => {
     // OTP authentication
     if (authMethod === 'otp') {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      await redisClient.setex(`otp:${phone}`, 300, otp);
+      await setCache(`otp:${phone}`, otp, 300);
 
       await msg91Service.sendSMS(
         phone,
@@ -197,7 +197,7 @@ export const verifyOTP = async (req, res) => {
     const { phone, otp } = req.body;
 
     // Get OTP from Redis
-    const storedOTP = await redisClient.get(`otp:${phone}`);
+    const storedOTP = await getCache(`otp:${phone}`);
 
     if (!storedOTP) {
       return res.status(400).json({
@@ -214,7 +214,7 @@ export const verifyOTP = async (req, res) => {
     }
 
     // Delete OTP
-    await redisClient.del(`otp:${phone}`);
+    await deleteCache(`otp:${phone}`);
 
     // Find user
     const user = await User.findOne({ phone })

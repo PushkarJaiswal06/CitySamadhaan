@@ -38,7 +38,8 @@ if (isRedisEnabled) {
 export const setCache = async (key, value, expireInSeconds = 3600) => {
   if (!redisClient) return false;
   try {
-    await redisClient.setex(key, expireInSeconds, JSON.stringify(value));
+    const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+    await redisClient.setex(key, expireInSeconds, stringValue);
     return true;
   } catch (error) {
     console.error('Redis set error:', error);
@@ -50,7 +51,14 @@ export const getCache = async (key) => {
   if (!redisClient) return null;
   try {
     const data = await redisClient.get(key);
-    return data ? JSON.parse(data) : null;
+    if (!data) return null;
+    
+    // Try to parse as JSON, return as string if it fails
+    try {
+      return JSON.parse(data);
+    } catch {
+      return data;
+    }
   } catch (error) {
     console.error('Redis get error:', error);
     return null;

@@ -10,19 +10,34 @@ export const useAuthStore = create((set) => ({
 
   setUser: (user) => set({ user, isAuthenticated: true }),
 
-  login: async (phone, password) => {
+  login: async (credentials) => {
     set({ loading: true, error: null });
     try {
-      const { data } = await authService.login(phone, password);
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('refreshToken', data.refreshToken);
-      set({ 
-        user: data.user, 
-        token: data.token,
-        isAuthenticated: true,
-        loading: false
-      });
-      return data;
+      const { phone, password, authMethod } = credentials;
+      let data;
+      
+      if (authMethod === 'otp') {
+        data = await authService.loginWithOTP(phone);
+      } else {
+        const { data: responseData } = await authService.login(phone, password, authMethod);
+        data = responseData;
+      }
+      
+      // Only store tokens if we have them (not for OTP requests)
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('refreshToken', data.refreshToken);
+        set({ 
+          user: data.user, 
+          token: data.token,
+          isAuthenticated: true,
+          loading: false
+        });
+      } else {
+        set({ loading: false });
+      }
+      
+      return { data };
     } catch (error) {
       set({ 
         error: error.response?.data?.message || 'Login failed',
