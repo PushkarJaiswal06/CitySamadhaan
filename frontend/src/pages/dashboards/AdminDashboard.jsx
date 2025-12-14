@@ -86,10 +86,15 @@ const AdminDashboard = () => {
       };
       Object.keys(params).forEach(key => params[key] === '' && delete params[key]);
       
-      const { data } = await complaintService.getComplaints(params);
-      setComplaints(data.complaints);
-      setPagination(prev => ({ ...prev, pages: data.pagination.pages }));
+      const response = await complaintService.getComplaints(params);
+      // Handle response structure - check if data is nested
+      const responseData = response.data?.data || response.data;
+      setComplaints(responseData.complaints || []);
+      if (responseData.pagination) {
+        setPagination(prev => ({ ...prev, pages: responseData.pagination.pages }));
+      }
     } catch (error) {
+      console.error('Failed to load complaints:', error);
       toast.error('Failed to load complaints');
     }
   };
@@ -103,10 +108,15 @@ const AdminDashboard = () => {
       };
       Object.keys(params).forEach(key => params[key] === '' && delete params[key]);
       
-      const { data } = await userService.getUsers(params);
-      setUsers(data.users);
-      setPagination(prev => ({ ...prev, pages: data.pagination.pages }));
+      const response = await userService.getUsers(params);
+      // Handle response structure - check if data is nested
+      const responseData = response.data?.data || response.data;
+      setUsers(responseData.users || []);
+      if (responseData.pagination) {
+        setPagination(prev => ({ ...prev, pages: responseData.pagination.pages }));
+      }
     } catch (error) {
+      console.error('Failed to load users:', error);
       toast.error('Failed to load users');
     }
   };
