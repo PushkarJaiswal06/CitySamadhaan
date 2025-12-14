@@ -69,9 +69,11 @@ const DepartmentOfficerDashboard = () => {
   const fetchFieldWorkers = async () => {
     try {
       const { data } = await userService.getFieldWorkers(user?.department?._id);
-      setFieldWorkers(data);
+      // Handle nested response structure
+      setFieldWorkers(data.data || data.fieldWorkers || data || []);
     } catch (error) {
       console.error('Failed to fetch field workers:', error);
+      setFieldWorkers([]);
     }
   };
 
@@ -194,7 +196,7 @@ const DepartmentOfficerDashboard = () => {
               className="px-4 py-2 border rounded-md"
             >
               <option value="">All Workers</option>
-              {fieldWorkers.map(worker => (
+              {Array.isArray(fieldWorkers) && fieldWorkers.map(worker => (
                 <option key={worker._id} value={worker._id}>{worker.name}</option>
               ))}
             </select>
@@ -281,7 +283,7 @@ const DepartmentOfficerDashboard = () => {
               }}
             >
               <option value="">Select field worker</option>
-              {fieldWorkers.map(worker => (
+              {Array.isArray(fieldWorkers) && fieldWorkers.map(worker => (
                 <option key={worker._id} value={worker._id}>{worker.name} ({worker.phone})</option>
               ))}
             </select>

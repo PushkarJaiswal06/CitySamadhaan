@@ -3,6 +3,7 @@ import { useAuthStore } from '../../store/authStore';
 import { complaintService } from '../../services/complaintService';
 import { userService } from '../../services/userService';
 import { departmentService } from '../../services/departmentService';
+import UserManagement from '../../components/UserManagement';
 import toast from 'react-hot-toast';
 import {
   FaSignOutAlt,
@@ -21,7 +22,7 @@ import {
 
 const AdminDashboard = () => {
   const { user, logout } = useAuthStore();
-  const [activeTab, setActiveTab] = useState('overview'); // overview, complaints, users
+  const [activeTab, setActiveTab] = useState('overview'); // overview, complaints, users, manage-users
   const [stats, setStats] = useState(null);
   const [complaints, setComplaints] = useState([]);
   const [users, setUsers] = useState([]);
@@ -204,6 +205,17 @@ const AdminDashboard = () => {
             >
               <FaUsers className="inline mr-2" />
               Users
+            </button>
+            <button
+              onClick={() => setActiveTab('manage-users')}
+              className={`px-6 py-3 font-medium ${
+                activeTab === 'manage-users'
+                  ? 'text-primary-600 border-b-2 border-primary-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <FaUserPlus className="inline mr-2" />
+              Manage Users
             </button>
           </div>
         </div>
@@ -474,6 +486,11 @@ const AdminDashboard = () => {
               </table>
             </div>
           </div>
+        )}
+
+        {/* Manage Users Tab */}
+        {activeTab === 'manage-users' && (
+          <UserManagement />
         )}
       </div>
     </div>

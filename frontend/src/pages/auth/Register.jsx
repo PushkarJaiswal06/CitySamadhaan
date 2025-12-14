@@ -1,8 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { roleService } from '../../services/roleService';
-import { departmentService } from '../../services/departmentService';
 import toast from 'react-hot-toast';
 
 const Register = () => {
@@ -15,81 +13,21 @@ const Register = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    roleId: '',
-    departmentId: '',
     authMethod: 'password',
     language: 'en'
   });
 
-  const [roles, setRoles] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [selectedRole, setSelectedRole] = useState(null);
-  const [showOTPField, setShowOTPField] = useState(false);
-
-  useEffect(() => {
-    fetchRoles();
-    fetchDepartments();
-  }, []);
-
-  const fetchRoles = async () => {
-    try {
-      const { data } = await roleService.getRoles();
-      setRoles(data);
-    } catch (error) {
-      toast.error('Failed to load roles');
-    }
-  };
-
-  const fetchDepartments = async () => {
-    try {
-      const { data } = await departmentService.getDepartments();
-      setDepartments(data);
-    } catch (error) {
-      toast.error('Failed to load departments');
-    }
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-
-    if (name === 'roleId') {
-      const role = roles.find(r => r._id === value);
-      setSelectedRole(role);
-      
-      // Reset department if role doesn't require it
-      if (!requiresDepartment(role)) {
-        setFormData(prev => ({ ...prev, departmentId: '' }));
-      }
-    }
-  };
-
-  const requiresDepartment = (role) => {
-    if (!role) return false;
-    return ['department_officer', 'department_head', 'field_worker'].includes(role.name);
-  };
-
-  const requiresEmail = (role) => {
-    if (!role) return false;
-    return !['citizen', 'call_center_agent'].includes(role.name);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validations
-    if (!formData.name || !formData.phone || !formData.roleId) {
+    if (!formData.name || !formData.phone) {
       toast.error('Please fill all required fields');
-      return;
-    }
-
-    if (selectedRole && requiresEmail(selectedRole) && !formData.email) {
-      toast.error('Email is required for this role');
-      return;
-    }
-
-    if (selectedRole && requiresDepartment(selectedRole) && !formData.departmentId) {
-      toast.error('Department is required for this role');
       return;
     }
 
@@ -111,8 +49,6 @@ const Register = () => {
         phone: formData.phone,
         email: formData.email || undefined,
         password: formData.authMethod === 'password' ? formData.password : undefined,
-        role: formData.roleId,
-        department: formData.departmentId || undefined,
         authMethod: formData.authMethod,
         language: formData.language
       };
@@ -141,6 +77,9 @@ const Register = () => {
           Create your account
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
+          Register as a Citizen
+        </p>
+        <p className="mt-1 text-center text-sm text-gray-500">
           Already have an account?{' '}
           <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500">
             Sign in
@@ -183,69 +122,19 @@ const Register = () => {
               />
             </div>
 
-            {/* Role Selection */}
+            {/* Email (Optional) */}
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Select Role *
+                Email Address (Optional)
               </label>
-              <select
-                name="roleId"
-                required
-                value={formData.roleId}
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="">-- Select Role --</option>
-                {roles.map(role => (
-                  <option key={role._id} value={role._id}>
-                    {role.displayName}
-                  </option>
-                ))}
-              </select>
-              {selectedRole && (
-                <p className="mt-1 text-xs text-gray-500">{selectedRole.description}</p>
-              )}
+              />
             </div>
-
-            {/* Department (conditional) */}
-            {selectedRole && requiresDepartment(selectedRole) && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Department *
-                </label>
-                <select
-                  name="departmentId"
-                  required
-                  value={formData.departmentId}
-                  onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                >
-                  <option value="">-- Select Department --</option>
-                  {departments.map(dept => (
-                    <option key={dept._id} value={dept._id}>
-                      {dept.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Email (conditional) */}
-            {selectedRole && requiresEmail(selectedRole) && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Email Address *
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                />
-              </div>
-            )}
 
             {/* Auth Method */}
             <div>
@@ -279,6 +168,7 @@ const Register = () => {
                     onChange={handleChange}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
+                  <p className="mt-1 text-xs text-gray-500">Minimum 8 characters</p>
                 </div>
 
                 <div>
@@ -325,10 +215,18 @@ const Register = () => {
                 disabled={loading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
               >
-                {loading ? 'Registering...' : 'Register'}
+                {loading ? 'Registering...' : 'Register as Citizen'}
               </button>
             </div>
           </form>
+
+          {/* Info Box */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-xs text-blue-800">
+              <strong>Note:</strong> This registration is for citizens only. 
+              Other roles (Department Officers, Field Workers, etc.) are onboarded by the system administrator.
+            </p>
+          </div>
         </div>
       </div>
     </div>
