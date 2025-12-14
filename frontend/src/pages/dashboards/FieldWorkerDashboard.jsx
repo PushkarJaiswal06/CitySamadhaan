@@ -30,12 +30,12 @@ const FieldWorkerDashboard = () => {
 
   const fetchTasks = async () => {
     try {
-      const { data } = await complaintService.getComplaints({
-        assignedTo: user?._id,
-        status: 'assigned,in_progress'
-      });
-      setTasks(data.complaints);
+      // Backend automatically filters by assignedTo for field workers
+      const { data } = await complaintService.getComplaints();
+      console.log('Field worker complaints:', data);
+      setTasks(data.complaints || []);
     } catch (error) {
+      console.error('Failed to load tasks:', error);
       toast.error('Failed to load tasks');
     } finally {
       setLoading(false);

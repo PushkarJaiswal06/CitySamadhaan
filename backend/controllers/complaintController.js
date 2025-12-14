@@ -457,12 +457,18 @@ export const assignComplaint = async (req, res) => {
 
     await complaint.addUpdate(req.user._id, 'assigned', `Assigned to field worker`);
 
+    // Populate assignedTo with full user details
+    await complaint.populate('assignedTo', 'name phone email');
+    await complaint.populate('department', 'name code');
+    await complaint.populate('category', 'name');
+
     res.json({
       success: true,
       message: 'Complaint assigned successfully',
       data: complaint
     });
   } catch (error) {
+    console.error('Assign complaint error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to assign complaint'

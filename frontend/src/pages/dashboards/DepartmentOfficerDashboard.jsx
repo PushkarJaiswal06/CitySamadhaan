@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { complaintService } from '../../services/complaintService';
 import { userService } from '../../services/userService';
+import FieldWorkerManagement from '../../components/FieldWorkerManagement';
 import toast from 'react-hot-toast';
 import {
   FaSignOutAlt,
@@ -16,6 +17,7 @@ import {
 
 const DepartmentOfficerDashboard = () => {
   const { user, logout } = useAuthStore();
+  const isDepartmentHead = user?.role?.name === 'department_head';
   const [activeTab, setActiveTab] = useState('complaints');
   const [complaints, setComplaints] = useState([]);
   const [fieldWorkers, setFieldWorkers] = useState([]);
@@ -28,6 +30,7 @@ const DepartmentOfficerDashboard = () => {
   });
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [selectedWorker, setSelectedWorker] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -79,13 +82,18 @@ const DepartmentOfficerDashboard = () => {
 
   const handleAssignComplaint = async (complaintId, fieldWorkerId) => {
     try {
-      await complaintService.assignComplaint(complaintId, fieldWorkerId);
+      console.log('Assigning complaint:', complaintId, 'to worker:', fieldWorkerId);
+      const response = await complaintService.assignComplaint(complaintId, fieldWorkerId);
+      console.log('Assignment response:', response);
       toast.success('Complaint assigned successfully');
       setShowAssignModal(false);
       setSelectedComplaint(null);
-      fetchComplaints();
+      setSelectedWorker('');
+      // Refresh complaints list to show updated assignment
+      await fetchComplaints();
     } catch (error) {
-      toast.error('Failed to assign complaint');
+      console.error('Assignment error:', error);
+      toast.error(error.response?.data?.message || 'Failed to assign complaint');
     }
   };
 
@@ -141,29 +149,60 @@ const DepartmentOfficerDashboard = () => {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <StatCard
-            title="Total Complaints"
-            value={complaints.length}
-            icon={<FaFileAlt className="text-3xl text-blue-600" />}
-          />
-          <StatCard
-            title="Pending"
-            value={complaints.filter(c => c.status === 'pending').length}
-            icon={<FaClock className="text-3xl text-yellow-600" />}
-          />
-          <StatCard
-            title="In Progress"
-            value={complaints.filter(c => c.status === 'in_progress').length}
-            icon={<FaTasks className="text-3xl text-purple-600" />}
-          />
-          <StatCard
-            title="Resolved"
-            value={complaints.filter(c => c.status === 'resolved').length}
-            icon={<FaCheckCircle className="text-3xl text-green-600" />}
-          />
+        {/* Tabs */}
+        <div className="bg-white rounded-lg shadow-sm mb-6">
+          <div className="flex border-b">
+            <button
+              onClick={() => setActiveTab('complaints')}
+              className={`px-6 py-3 font-medium ${
+                activeTab === 'complaints'
+                  ? 'text-primary-600 border-b-2 border-primary-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <FaFileAlt className="inline mr-2" />
+              Complaints
+            </button>
+            <button
+              onClick={() => setActiveTab('field-workers')}
+              className={`px-6 py-3 font-medium ${
+                activeTab === 'field-workers'
+                  ? 'text-primary-600 border-b-2 border-primary-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <FaUserPlus className="inline mr-2" />
+              Field Workers
+            </button>
+          </div>
         </div>
+
+        {/* Complaints Tab */}
+        {activeTab === 'complaints' && (
+          <>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <StatCard
+                title="Total Complaints"
+                value={complaints.length}
+                icon={<FaFileAlt className="text-3xl text-blue-600" />}
+              />
+              <StatCard
+                title="Pending"
+                value={complaints.filter(c => c.status === 'pending').length}
+                icon={<FaClock className="text-3xl text-yellow-600" />}
+              />
+              <StatCard
+                title="In Progress"
+                value={complaints.filter(c => c.status === 'in_progress').length}
+                icon={<FaTasks className="text-3xl text-purple-600" />}
+              />
+              <StatCard
+                title="Resolved"
+                value={complaints.filter(c => c.status === 'resolved').length}
+                icon={<FaCheckCircle className="text-3xl text-green-600" />}
+              />
+            </div>
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -264,6 +303,13 @@ const DepartmentOfficerDashboard = () => {
             </table>
           </div>
         </div>
+          </>
+        )}
+
+        {/* Field Workers Tab */}
+        {activeTab === 'field-workers' && (
+          <FieldWorkerManagement canAddWorkers={true} />
+        )}
       </div>
 
       {/* Assignment Modal */}
@@ -276,11 +322,8 @@ const DepartmentOfficerDashboard = () => {
             </p>
             <select
               className="w-full px-4 py-2 border rounded-md mb-4"
-              onChange={(e) => {
-                if (e.target.value) {
-                  handleAssignComplaint(selectedComplaint._id, e.target.value);
-                }
-              }}
+              value={selectedWorker}
+              onChange={(e) => setSelectedWorker(e.target.value)}
             >
               <option value="">Select field worker</option>
               {Array.isArray(fieldWorkers) && fieldWorkers.map(worker => (
@@ -292,10 +335,25 @@ const DepartmentOfficerDashboard = () => {
                 onClick={() => {
                   setShowAssignModal(false);
                   setSelectedComplaint(null);
+                  setSelectedWorker('');
                 }}
                 className="flex-1 px-4 py-2 border rounded-md hover:bg-gray-50"
               >
                 Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedWorker) {
+                    handleAssignComplaint(selectedComplaint._id, selectedWorker);
+                    setSelectedWorker('');
+                  } else {
+                    toast.error('Please select a field worker');
+                  }
+                }}
+                disabled={!selectedWorker}
+                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Assign
               </button>
             </div>
           </div>
