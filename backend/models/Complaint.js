@@ -131,8 +131,11 @@ const complaintSchema = new mongoose.Schema({
     transactionHash: String,
     blockNumber: Number,
     anchoredAt: Date,
-    merkleRoot: String
+    dataHash: String,
+    verified: { type: Boolean, default: false }
   },
+  blockchainHash: String,
+  blockchainDataHash: String,
   metadata: {
     viewCount: { type: Number, default: 0 },
     escalated: { type: Boolean, default: false },

@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import connectDB from './config/database.js';
 import redisClient from './config/redis.js';
+import blockchainService from './services/blockchainService.js';
 import authRoutes from './routes/authRoutes.js';
 import complaintRoutes from './routes/complaintRoutes.js';
 import departmentRoutes from './routes/departmentRoutes.js';
@@ -32,12 +33,15 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health Check Route
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  const blockchainStats = await blockchainService.getBlockchainStats();
+  
   res.json({ 
     status: 'OK', 
     message: 'CitySamdhaan API is running',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV
+    environment: process.env.NODE_ENV,
+    blockchain: blockchainStats || { enabled: false }
   });
 });
 
@@ -89,6 +93,20 @@ const startServer = async () => {
       console.log('✅ Redis Connected');
     } catch (redisError) {
       console.warn('⚠️ Redis not available (optional - app will continue):', redisError.message);
+    }
+
+    // Initialize Blockchain (optional - won't fail startup)
+    try {
+      const blockchainInitialized = await blockchainService.initialize();
+      if (blockchainInitialized) {
+        console.log('✅ Blockchain Service Connected');
+        const stats = await blockchainService.getBlockchainStats();
+        console.log(`📊 Blockchain Stats: ${stats.totalComplaints} complaints, ${stats.totalAudits} audits on block ${stats.blockNumber}`);
+      } else {
+        console.warn('⚠️ Blockchain not configured (complaints will not be anchored on-chain)');
+      }
+    } catch (blockchainError) {
+      console.warn('⚠️ Blockchain initialization failed (optional):', blockchainError.message);
     }
 
     // Start listening

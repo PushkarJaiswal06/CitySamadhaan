@@ -8,7 +8,8 @@ import {
   assignComplaint,
   getComplaintStats,
   uploadComplaintImage,
-  addComplaintFeedback
+  addComplaintFeedback,
+  verifyComplaintBlockchain
 } from '../controllers/complaintController.js';
 import { authenticate, authorize, checkPermission } from '../middleware/auth.js';
 
@@ -48,5 +49,8 @@ router.get('/:id', checkPermission('complaints', 'read'), getComplaint);
 router.patch('/:id/status', checkPermission('complaints', 'update'), updateComplaintStatus);
 router.patch('/:id/assign', checkPermission('complaints', 'assign'), assignComplaint);
 router.post('/:id/feedback', addComplaintFeedback);
+
+// Blockchain verification
+router.get('/:id/verify-blockchain', checkPermission('complaints', 'read'), verifyComplaintBlockchain);
 
 export default router;

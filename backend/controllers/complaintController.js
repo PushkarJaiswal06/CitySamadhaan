@@ -4,6 +4,7 @@ import ComplaintCategory from '../models/ComplaintCategory.js';
 import User from '../models/User.js';
 import msg91Service from '../services/msg91Service.js';
 import cloudinaryService from '../services/cloudinaryService.js';
+import blockchainService from '../services/blockchainService.js';
 
 // @desc    Create new complaint
 // @route   POST /api/complaints
@@ -36,6 +37,32 @@ export const createComplaint = async (req, res) => {
       status: 'pending',
       media: media || []
     });
+
+    // Anchor complaint on blockchain
+    try {
+      const blockchainData = await blockchainService.registerComplaint({
+        complaintId: complaint.complaintId,
+        citizen: req.user._id.toString(),
+        citizenAddress: req.user.walletAddress || undefined,
+        title: complaint.title,
+        description: complaint.description,
+        department: department.code,
+        category: categoryDoc.code,
+        location: complaint.location,
+        createdAt: complaint.createdAt
+      });
+
+      if (blockchainData) {
+        complaint.blockchainHash = blockchainData.transactionHash;
+        complaint.blockchainDataHash = blockchainData.dataHash;
+        await complaint.save();
+        
+        console.log(`✅ Complaint ${complaint.complaintId} anchored on blockchain: ${blockchainData.transactionHash}`);
+      }
+    } catch (blockchainError) {
+      console.error('Blockchain anchoring failed (non-critical):', blockchainError.message);
+      // Continue without blockchain - it's not critical for complaint creation
+    }
 
     // Increment department counter
     await department.incrementComplaintCount();
@@ -182,9 +209,46 @@ export const updateComplaintStatus = async (req, res) => {
     // Add update to history
     await complaint.addUpdate(req.user._id, status, comment);
 
+    // Anchor status update on blockchain
+    try {
+      const blockchainData = await blockchainService.updateComplaintStatus(
+        complaint.complaintId,
+        {
+          status: status,
+          comment: comment || '',
+          updatedBy: req.user._id.toString(),
+          timestamp: new Date().toISOString()
+        }
+      );
+
+      if (blockchainData) {
+        console.log(`✅ Status update for ${complaint.complaintId} anchored: ${blockchainData.transactionHash}`);
+      }
+      
+      // Record audit trail
+      await blockchainService.recordAudit({
+        actionType: 'COMPLAINT_UPDATED',
+        entityId: complaint.complaintId,
+        description: `Status changed to ${status} by ${req.user.name || req.user.email}`
+      });
+    } catch (blockchainError) {
+      console.error('Blockchain status update failed (non-critical):', blockchainError.message);
+    }
+
     // If resolved, add resolution
     if (status === 'resolved' && resolutionNote) {
       complaint.resolution.resolutionNote = resolutionNote;
+      
+      // Record resolution on blockchain
+      try {
+        await blockchainService.recordAudit({
+          actionType: 'COMPLAINT_RESOLVED',
+          entityId: complaint.complaintId,
+          description: `Complaint resolved: ${resolutionNote}`
+        });
+      } catch (err) {
+        console.error('Failed to record resolution on blockchain:', err.message);
+      }
     }
 
     // Send SMS to citizen
@@ -409,6 +473,75 @@ export const addComplaintFeedback = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to add feedback'
+    });
+  }
+};
+
+// @desc    Verify complaint on blockchain
+// @route   GET /api/complaints/:id/verify-blockchain
+export const verifyComplaintBlockchain = async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id)
+      .populate('citizen', 'name email')
+      .populate('department', 'name code')
+      .populate('category', 'name code');
+
+    if (!complaint) {
+      return res.status(404).json({
+        success: false,
+        message: 'Complaint not found'
+      });
+    }
+
+    // Check if complaint is anchored on blockchain
+    if (!complaint.blockchainHash) {
+      return res.status(400).json({
+        success: false,
+        message: 'Complaint not anchored on blockchain',
+        verified: false
+      });
+    }
+
+    // Verify complaint data integrity
+    const verificationResult = await blockchainService.verifyComplaint(
+      complaint.complaintId,
+      {
+        complaintId: complaint.complaintId,
+        citizen: complaint.citizen._id.toString(),
+        title: complaint.title,
+        description: complaint.description,
+        department: complaint.department.code,
+        category: complaint.category.code,
+        location: complaint.location,
+        createdAt: complaint.createdAt
+      }
+    );
+
+    // Get blockchain data
+    const blockchainData = await blockchainService.getComplaintFromChain(complaint.complaintId);
+    
+    // Get status history from blockchain
+    const statusHistory = await blockchainService.getStatusHistory(complaint.complaintId);
+
+    res.json({
+      success: true,
+      verified: verificationResult?.verified || false,
+      data: {
+        complaintId: complaint.complaintId,
+        transactionHash: complaint.blockchainHash,
+        dataHash: complaint.blockchainDataHash,
+        explorerUrl: blockchainService.getTransactionUrl(complaint.blockchainHash),
+        blockchainData: blockchainData,
+        statusHistory: statusHistory,
+        verificationTimestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Blockchain verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to verify complaint on blockchain',
+      verified: false
     });
   }
 };
