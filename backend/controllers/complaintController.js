@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Complaint from '../models/Complaint.js';
 import Department from '../models/Department.js';
 import ComplaintCategory from '../models/ComplaintCategory.js';
@@ -6,11 +7,47 @@ import msg91Service from '../services/msg91Service.js';
 import cloudinaryService from '../services/cloudinaryService.js';
 import blockchainService from '../services/blockchainService.js';
 
-// @desc    Create new complaint
-// @route   POST /api/complaints
+// @desc    Create new complaint (Public or Authenticated)
+// @route   POST /api/complaints/public OR POST /api/complaints
 export const createComplaint = async (req, res) => {
   try {
-    const { title, description, category, departmentId, location, priority, source = 'web', language = 'en', media = [] } = req.body;
+    let { 
+      title, 
+      description, 
+      category, 
+      departmentId, 
+      location, 
+      priority, 
+      source = 'web', 
+      language = 'en', 
+      media = [],
+      // Public submission fields
+      citizenName,
+      citizenPhone,
+      citizenEmail
+    } = req.body;
+
+    // Parse location if it's a string (from FormData)
+    if (typeof location === 'string') {
+      try {
+        location = JSON.parse(location);
+      } catch (e) {
+        console.error('Failed to parse location:', e);
+      }
+    }
+
+    // Check if this is a public submission (no authentication)
+    const isPublicSubmission = !req.user;
+    
+    // For public submissions, validate contact info
+    if (isPublicSubmission) {
+      if (!citizenName || !citizenPhone) {
+        return res.status(400).json({
+          success: false,
+          message: 'Name and phone number are required for public submissions'
+        });
+      }
+    }
 
     // Get department and category
     const department = await Department.findById(departmentId);
@@ -23,31 +60,74 @@ export const createComplaint = async (req, res) => {
       });
     }
 
-    // Create complaint
-    const complaint = await Complaint.create({
-      citizen: req.user._id,
+    // Process uploaded images if any (optional)
+    let mediaUrls = [];
+    if (req.files && req.files.length > 0) {
+      try {
+        // Only try Cloudinary if API key is configured
+        if (process.env.CLOUDINARY_API_KEY) {
+          const uploadPromises = req.files.map(file => 
+            cloudinaryService.uploadImage(file.buffer, 'complaints')
+          );
+          const uploadResults = await Promise.all(uploadPromises);
+          mediaUrls = uploadResults.map(result => ({
+            url: result.secure_url,
+            publicId: result.public_id,
+            type: 'image'
+          }));
+        } else {
+          console.log('Cloudinary not configured - images skipped');
+        }
+      } catch (uploadError) {
+        console.error('Image upload error:', uploadError.message);
+        // Continue without images - not critical
+      }
+    }
+
+    // Create complaint with or without authenticated user
+    const complaintData = {
       department: departmentId,
       category,
       title,
       description,
-      location,
-      priority: priority || categoryDoc.defaultPriority,
-      source,
-      language,
+      location: location || {
+        address: 'Not specified',
+        coordinates: {
+          type: 'Point',
+          coordinates: [77.4126, 23.2599] // Default Bhopal coordinates
+        }
+      },
+      priority: priority || categoryDoc.defaultPriority || 'P3',
+      source: isPublicSubmission ? 'public_web' : source,
+      language: language || 'en',
       status: 'pending',
-      media: media || []
-    });
+      media: mediaUrls
+    };
+
+    // Add citizen info based on submission type
+    if (isPublicSubmission) {
+      complaintData.publicSubmission = {
+        name: citizenName,
+        phone: citizenPhone,
+        email: citizenEmail || null
+      };
+      complaintData.citizen = null; // No user account linked
+    } else {
+      complaintData.citizen = req.user._id;
+    }
+
+    const complaint = await Complaint.create(complaintData);
 
     // Anchor complaint on blockchain
     try {
       const blockchainData = await blockchainService.registerComplaint({
         complaintId: complaint.complaintId,
-        citizen: req.user._id.toString(),
-        citizenAddress: req.user.walletAddress || undefined,
+        citizen: isPublicSubmission ? citizenPhone : req.user._id.toString(),
+        citizenAddress: isPublicSubmission ? undefined : (req.user.walletAddress || undefined),
         title: complaint.title,
         description: complaint.description,
         department: department.code,
-        category: categoryDoc.code,
+        category: categoryDoc.name,
         location: complaint.location,
         createdAt: complaint.createdAt
       });
@@ -68,11 +148,17 @@ export const createComplaint = async (req, res) => {
     await department.incrementComplaintCount();
 
     // Send SMS notification to citizen
-    await msg91Service.sendComplaintConfirmation(
-      req.user.phone,
-      complaint.complaintId,
-      categoryDoc.name
-    );
+    const notificationPhone = isPublicSubmission ? citizenPhone : req.user.phone;
+    try {
+      await msg91Service.sendComplaintConfirmation(
+        notificationPhone,
+        complaint.complaintId,
+        categoryDoc.name
+      );
+    } catch (smsError) {
+      console.error('SMS notification failed:', smsError.message);
+      // Continue - SMS is not critical
+    }
 
     const populatedComplaint = await Complaint.findById(complaint._id)
       .populate('citizen', 'name phone')
@@ -81,8 +167,12 @@ export const createComplaint = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Complaint registered successfully',
-      data: populatedComplaint
+      message: isPublicSubmission 
+        ? `Complaint registered successfully! Your complaint ID is ${complaint.complaintId}. Save this ID to track your complaint.`
+        : 'Complaint registered successfully',
+      data: populatedComplaint,
+      trackingId: complaint.complaintId,
+      blockchainVerified: !!complaint.blockchainHash
     });
   } catch (error) {
     console.error('Create complaint error:', error);
@@ -93,24 +183,31 @@ export const createComplaint = async (req, res) => {
   }
 };
 
-// @desc    Get all complaints (with filters)
-// @route   GET /api/complaints
+// @desc    Get all complaints (with filters) - Public or Authenticated
+// @route   GET /api/complaints/public/all OR GET /api/complaints
 export const getComplaints = async (req, res) => {
   try {
     const { status, department, priority, page = 1, limit = 20, search } = req.query;
-    const userRole = req.user.role.name;
+    const isPublicRequest = !req.user;
 
-    // Build query based on role
+    // Build query based on role or public access
     let query = {};
 
-    if (userRole === 'citizen') {
-      query.citizen = req.user._id;
-    } else if (userRole === 'department_officer' || userRole === 'department_head') {
-      if (req.user.department) {
-        query.department = req.user.department._id;
+    if (isPublicRequest) {
+      // Public users can see all complaints but with limited info
+      // No additional filters based on user
+    } else {
+      const userRole = req.user.role.name;
+
+      if (userRole === 'citizen') {
+        query.citizen = req.user._id;
+      } else if (userRole === 'department_officer' || userRole === 'department_head') {
+        if (req.user.department) {
+          query.department = req.user.department._id;
+        }
+      } else if (userRole === 'field_worker') {
+        query.assignedTo = req.user._id;
       }
-    } else if (userRole === 'field_worker') {
-      query.assignedTo = req.user._id;
     }
 
     // Apply filters
@@ -128,7 +225,7 @@ export const getComplaints = async (req, res) => {
     const skip = (page - 1) * limit;
     const total = await Complaint.countDocuments(query);
 
-    const complaints = await Complaint.find(query)
+    let complaints = await Complaint.find(query)
       .populate('citizen', 'name phone')
       .populate('department', 'name code')
       .populate('category', 'name')
@@ -136,6 +233,28 @@ export const getComplaints = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .skip(skip);
+
+    // For public requests, anonymize personal data
+    if (isPublicRequest) {
+      complaints = complaints.map(c => {
+        const complaint = c.toObject();
+        // Remove sensitive data for public view
+        if (complaint.publicSubmission) {
+          complaint.publicSubmission = {
+            name: complaint.publicSubmission.name?.substring(0, 1) + '***', // Show only first letter
+            phone: '******' + complaint.publicSubmission.phone?.slice(-4), // Show only last 4 digits
+            email: null
+          };
+        }
+        if (complaint.citizen) {
+          complaint.citizen = {
+            name: complaint.citizen.name?.substring(0, 1) + '***',
+            phone: null
+          };
+        }
+        return complaint;
+      });
+    }
 
     res.json({
       success: true,
@@ -156,11 +275,15 @@ export const getComplaints = async (req, res) => {
   }
 };
 
-// @desc    Get single complaint
-// @route   GET /api/complaints/:id
+// @desc    Get single complaint - Public tracking or Authenticated
+// @route   GET /api/complaints/public/track/:complaintId OR GET /api/complaints/:id
 export const getComplaint = async (req, res) => {
   try {
-    const complaint = await Complaint.findById(req.params.id)
+    const isPublicRequest = !req.user;
+    const searchParam = req.params.id || req.params.complaintId;
+    
+    // Try to find by complaint ID (CSB-2024-XXXXX) or MongoDB _id
+    let complaint = await Complaint.findOne({ complaintId: searchParam })
       .populate('citizen', 'name phone email address')
       .populate('department', 'name code contactEmail contactPhone')
       .populate('category', 'name description')
@@ -168,10 +291,21 @@ export const getComplaint = async (req, res) => {
       .populate('updates.updatedBy', 'name')
       .populate('resolution.resolvedBy', 'name');
 
+    // If not found by complaint ID, try MongoDB _id
+    if (!complaint && mongoose.Types.ObjectId.isValid(searchParam)) {
+      complaint = await Complaint.findById(searchParam)
+        .populate('citizen', 'name phone email address')
+        .populate('department', 'name code contactEmail contactPhone')
+        .populate('category', 'name description')
+        .populate('assignedTo', 'name phone')
+        .populate('updates.updatedBy', 'name')
+        .populate('resolution.resolvedBy', 'name');
+    }
+
     if (!complaint) {
       return res.status(404).json({
         success: false,
-        message: 'Complaint not found'
+        message: 'Complaint not found. Please check your complaint ID.'
       });
     }
 
@@ -179,9 +313,32 @@ export const getComplaint = async (req, res) => {
     complaint.checkSLABreach();
     await complaint.save();
 
+    // For public requests, hide sensitive personal information
+    let responseData = complaint.toObject();
+    if (isPublicRequest) {
+      // Keep only necessary tracking information
+      if (responseData.citizen) {
+        responseData.citizen = {
+          name: responseData.citizen.name?.substring(0, 1) + '***'
+        };
+      }
+      if (responseData.publicSubmission) {
+        responseData.publicSubmission = {
+          name: responseData.publicSubmission.name?.substring(0, 1) + '***'
+        };
+      }
+      // Remove assigned worker details
+      if (responseData.assignedTo) {
+        responseData.assignedTo = {
+          name: responseData.assignedTo.name
+        };
+      }
+    }
+
     res.json({
       success: true,
-      data: complaint
+      data: isPublicRequest ? responseData : complaint,
+      message: isPublicRequest ? 'Use this complaint ID to track your complaint: ' + complaint.complaintId : undefined
     });
   } catch (error) {
     res.status(500).json({

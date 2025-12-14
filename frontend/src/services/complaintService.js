@@ -1,6 +1,38 @@
 import api from './api';
 
 export const complaintService = {
+  // PUBLIC ENDPOINTS (No authentication required)
+  
+  // Create complaint without login
+  createPublicComplaint: async (complaintData) => {
+    const response = await api.post('/complaints/public', complaintData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Track complaint by ID (public)
+  trackComplaint: async (complaintId) => {
+    const response = await api.get(`/complaints/public/track/${complaintId}`);
+    return response.data;
+  },
+
+  // Get all complaints (public view)
+  getPublicComplaints: async (filters = {}) => {
+    const response = await api.get('/complaints/public/all', { params: filters });
+    return response.data;
+  },
+
+  // Verify complaint on blockchain (public)
+  verifyPublicComplaint: async (id) => {
+    const response = await api.get(`/complaints/public/verify/${id}`);
+    return response.data;
+  },
+
+  // AUTHENTICATED ENDPOINTS
+  
   // Create complaint
   createComplaint: async (complaintData) => {
     const response = await api.post('/complaints', complaintData);

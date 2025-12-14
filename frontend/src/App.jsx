@@ -8,6 +8,10 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import OTPVerification from './pages/auth/OTPVerification';
 
+// Public Pages (No Auth Required)
+import PublicComplaint from './pages/PublicComplaint';
+import PublicTracker from './pages/PublicTracker';
+
 // Role-based dashboards
 import CitizenDashboard from './pages/dashboards/CitizenDashboard';
 import AdminDashboard from './pages/dashboards/AdminDashboard';
@@ -44,6 +48,11 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/verify-otp" element={<OTPVerification />} />
+      
+      {/* Public Complaint Routes (No Authentication Required) */}
+      <Route path="/complaint" element={<PublicComplaint />} />
+      <Route path="/track" element={<PublicTracker />} />
+      <Route path="/track/:complaintId" element={<PublicTracker />} />
 
       {/* Protected Routes - Role Based Dashboards */}
       <Route

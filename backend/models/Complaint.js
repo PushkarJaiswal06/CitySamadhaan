@@ -4,12 +4,18 @@ const complaintSchema = new mongoose.Schema({
   complaintId: {
     type: String,
     unique: true,
-    required: true
+    required: false  // Auto-generated in pre-save hook
   },
   citizen: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false  // Not required for public submissions
+  },
+  // For public submissions without user account
+  publicSubmission: {
+    name: { type: String, trim: true },
+    phone: { type: String, trim: true },
+    email: { type: String, trim: true, lowercase: true }
   },
   department: {
     type: mongoose.Schema.Types.ObjectId,
@@ -36,7 +42,8 @@ const complaintSchema = new mongoose.Schema({
   location: {
     address: {
       type: String,
-      required: true
+      required: false,
+      default: 'Not specified'
     },
     area: String,
     wardNumber: String,
@@ -44,7 +51,11 @@ const complaintSchema = new mongoose.Schema({
     pincode: String,
     coordinates: {
       type: { type: String, enum: ['Point'], default: 'Point' },
-      coordinates: { type: [Number], required: true } // [longitude, latitude]
+      coordinates: { 
+        type: [Number], 
+        required: false,
+        default: [77.4126, 23.2599] // Default Bhopal coordinates
+      }
     }
   },
   priority: {
@@ -71,7 +82,7 @@ const complaintSchema = new mongoose.Schema({
   }],
   source: {
     type: String,
-    enum: ['web', 'mobile', 'sms', 'ivr', 'call_center'],
+    enum: ['web', 'mobile', 'sms', 'ivr', 'call_center', 'public_web'],
     required: true,
     default: 'web'
   },

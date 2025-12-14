@@ -31,7 +31,13 @@ const upload = multer({
   }
 });
 
-// All routes require authentication
+// PUBLIC ROUTES (No authentication required)
+router.post('/public', upload.array('images', 5), createComplaint);
+router.get('/public/track/:complaintId', getComplaint);
+router.get('/public/verify/:id', verifyComplaintBlockchain);
+router.get('/public/all', getComplaints); // Public complaint list
+
+// AUTHENTICATED ROUTES (Require login)
 router.use(authenticate);
 
 // Statistics (for dashboards)
