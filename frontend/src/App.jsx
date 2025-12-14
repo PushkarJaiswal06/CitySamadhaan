@@ -12,6 +12,13 @@ import OTPVerification from './pages/auth/OTPVerification';
 import PublicComplaint from './pages/PublicComplaint';
 import PublicTracker from './pages/PublicTracker';
 
+// Land Registry Pages
+import LandRegistry from './pages/land/LandRegistry';
+import PropertyVerification from './pages/land/PropertyVerification';
+import PropertyRegistration from './pages/land/PropertyRegistration';
+import MyProperties from './pages/land/MyProperties';
+import TransferInitiation from './pages/land/TransferInitiation';
+
 // Role-based dashboards
 import CitizenDashboard from './pages/dashboards/CitizenDashboard';
 import AdminDashboard from './pages/dashboards/AdminDashboard';
@@ -53,6 +60,13 @@ function App() {
       <Route path="/complaint" element={<PublicComplaint />} />
       <Route path="/track" element={<PublicTracker />} />
       <Route path="/track/:complaintId" element={<PublicTracker />} />
+
+      {/* Land Registry Routes */}
+      <Route path="/land" element={<LandRegistry />} />
+      <Route path="/land/verify" element={<PropertyVerification />} />
+      <Route path="/land/register" element={<PropertyRegistration />} />
+      <Route path="/land/my-properties" element={<MyProperties />} />
+      <Route path="/land/transfer/new" element={<TransferInitiation />} />
 
       {/* Protected Routes - Role Based Dashboards */}
       <Route

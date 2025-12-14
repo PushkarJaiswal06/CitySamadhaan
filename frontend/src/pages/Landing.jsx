@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FaPhoneAlt, FaSms, FaMobileAlt, FaShieldAlt, FaFileContract, FaChartLine, FaSearch, FaFileAlt } from 'react-icons/fa';
+import { FaPhoneAlt, FaSms, FaMobileAlt, FaShieldAlt, FaFileContract, FaChartLine, FaSearch, FaFileAlt, FaMapMarkedAlt } from 'react-icons/fa';
 import { useAuthStore } from '../store/authStore';
 
 const Landing = () => {
@@ -17,6 +17,9 @@ const Landing = () => {
             <div className="flex items-center space-x-4">
               <Link to="/track" className="text-gray-700 hover:text-primary-600 font-medium">
                 🔍 Track Complaint
+              </Link>
+              <Link to="/land" className="text-gray-700 hover:text-primary-600 font-medium">
+                🏛️ Land Registry
               </Link>
               {isAuthenticated ? (
                 <>
@@ -165,7 +168,7 @@ const Landing = () => {
           <p className="text-xl text-blue-100 mb-8">
             Join thousands of citizens making their cities better - no registration required!
           </p>
-          <div className="flex justify-center space-x-4">
+          <div className="flex justify-center space-x-4 flex-wrap gap-y-4">
             <Link
               to="/complaint"
               className="bg-white text-primary-600 px-8 py-3 rounded-lg text-lg font-bold hover:bg-gray-100 transform hover:scale-105 transition-all shadow-lg"
@@ -177,6 +180,12 @@ const Landing = () => {
               className="bg-primary-700 text-white px-8 py-3 rounded-lg text-lg font-semibold border-2 border-white hover:bg-primary-800 shadow-lg"
             >
               🔍 Track Complaint
+            </Link>
+            <Link
+              to="/land"
+              className="bg-green-600 text-white px-8 py-3 rounded-lg text-lg font-semibold border-2 border-green-300 hover:bg-green-700 shadow-lg"
+            >
+              🏛️ Land Registry
             </Link>
           </div>
           <p className="text-blue-100 mt-6 text-sm">
@@ -200,6 +209,8 @@ const Landing = () => {
               <ul className="space-y-2">
                 <li><Link to="/complaint" className="text-gray-400 hover:text-white">File Complaint</Link></li>
                 <li><Link to="/track" className="text-gray-400 hover:text-white">Track Status</Link></li>
+                <li><Link to="/land" className="text-gray-400 hover:text-white">Land Registry</Link></li>
+                <li><Link to="/land/verify" className="text-gray-400 hover:text-white">Verify Property</Link></li>
                 <li><Link to="/login" className="text-gray-400 hover:text-white">Staff Login</Link></li>
               </ul>
             </div>

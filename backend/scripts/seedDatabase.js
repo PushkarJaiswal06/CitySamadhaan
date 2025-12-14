@@ -61,6 +61,59 @@ const seedDatabase = async () => {
           system: { viewLogs: false, manageSettings: false, accessBlockchain: false }
         }
       },
+      // Land Registry Specific Roles
+      {
+        name: 'surveyor',
+        displayName: 'Land Surveyor',
+        description: 'Performs land survey and verification',
+        level: 4,
+        permissions: {
+          complaints: { create: false, read: false, update: false, delete: false, assign: false, bulkActions: false },
+          users: { create: false, read: true, update: false, delete: false, manageRoles: false },
+          departments: { manage: false, viewReports: true },
+          landRegistry: { create: false, approve: true, verify: true, viewAll: true },
+          system: { viewLogs: false, manageSettings: false, accessBlockchain: false }
+        }
+      },
+      {
+        name: 'sub_registrar',
+        displayName: 'Sub Registrar',
+        description: 'Handles property registration at sub-registrar office',
+        level: 5,
+        permissions: {
+          complaints: { create: false, read: false, update: false, delete: false, assign: false, bulkActions: false },
+          users: { create: false, read: true, update: false, delete: false, manageRoles: false },
+          departments: { manage: false, viewReports: true },
+          landRegistry: { create: false, approve: true, verify: true, viewAll: true },
+          system: { viewLogs: true, manageSettings: false, accessBlockchain: false }
+        }
+      },
+      {
+        name: 'tehsildar',
+        displayName: 'Tehsildar',
+        description: 'Revenue officer for land mutations',
+        level: 6,
+        permissions: {
+          complaints: { create: false, read: false, update: false, delete: false, assign: false, bulkActions: false },
+          users: { create: false, read: true, update: false, delete: false, manageRoles: false },
+          departments: { manage: false, viewReports: true },
+          landRegistry: { create: true, approve: true, verify: true, viewAll: true },
+          system: { viewLogs: true, manageSettings: false, accessBlockchain: false }
+        }
+      },
+      {
+        name: 'land_registry',
+        displayName: 'Land Registry Officer',
+        description: 'Land registry department officer',
+        level: 5,
+        permissions: {
+          complaints: { create: true, read: true, update: true, delete: false, assign: true, bulkActions: false },
+          users: { create: false, read: true, update: false, delete: false, manageRoles: false },
+          departments: { manage: false, viewReports: true },
+          landRegistry: { create: true, approve: true, verify: true, viewAll: true },
+          system: { viewLogs: true, manageSettings: false, accessBlockchain: false }
+        }
+      },
       {
         name: 'department_officer',
         displayName: 'Department Officer',
@@ -142,7 +195,7 @@ const seedDatabase = async () => {
     ];
 
     const createdRoles = await Role.insertMany(roles);
-    console.log('✅ Seeded 9 roles');
+    console.log('✅ Seeded 13 roles (including land registry officials)');
 
     // Seed Departments
     const departments = [

@@ -5,12 +5,14 @@ import helmet from 'helmet';
 import connectDB from './config/database.js';
 import redisClient from './config/redis.js';
 import blockchainService from './services/blockchainService.js';
+import landRegistryBlockchain from './services/landRegistryBlockchainService.js';
 import authRoutes from './routes/authRoutes.js';
 import complaintRoutes from './routes/complaintRoutes.js';
 import departmentRoutes from './routes/departmentRoutes.js';
 import roleRoutes from './routes/roleRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import landRoutes from './routes/landRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -60,6 +62,7 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/land', landRoutes);
 
 // 404 Handler
 app.use((req, res) => {
@@ -107,6 +110,18 @@ const startServer = async () => {
       }
     } catch (blockchainError) {
       console.warn('⚠️ Blockchain initialization failed (optional):', blockchainError.message);
+    }
+
+    // Initialize Land Registry Blockchain (optional - won't fail startup)
+    try {
+      const landBlockchainInitialized = await landRegistryBlockchain.initialize();
+      if (landBlockchainInitialized) {
+        console.log('✅ Land Registry Blockchain Service Connected');
+      } else {
+        console.warn('⚠️ Land Registry Blockchain not configured (properties will not be anchored on-chain)');
+      }
+    } catch (landBlockchainError) {
+      console.warn('⚠️ Land Registry Blockchain initialization failed (optional):', landBlockchainError.message);
     }
 
     // Start listening
